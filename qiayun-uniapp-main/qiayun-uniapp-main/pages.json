@@ -1,0 +1,155 @@
+{
+  "pages": [
+    {
+      "path": "pages/task/index",
+      "style": {
+        "navigationBarTitleText": "任务广场",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/task/updateTask",
+      "style": {
+        "navigationBarTitleText": "处理工单",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/task/doneTask",
+      "style": {
+        "navigationBarTitleText": "工单检查项",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/login/guide",
+      "style": {
+        "navigationBarTitleText": "恰云电力服务",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": {
+        "navigationBarTitleText": "更多",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/customer/index",
+      "style": {
+        "navigationBarTitleText": "客户中心",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "uni-app"
+      }
+    },
+    {
+      "path": "pages/task/detail",
+      "style": {
+        "navigationBarTitleText": "工单详情"
+      }
+    },
+    {
+      "path": "pages/mine/task",
+      "style": {
+        "navigationBarTitleText": "我的工单",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/mine/equipment",
+      "style": {
+        "navigationBarTitleText": "我的设备",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/mine/addEquipment",
+      "style": {
+        "navigationBarTitleText": "新增设备",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/login/userInfo",
+      "style": {
+        "navigationBarTitleText": "完善个人信息",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/login/entUserInfo",
+      "style": {
+        "navigationBarTitleText": "完善个人信息",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/login/company",
+      "style": {
+        "navigationBarTitleText": "完善公司信息",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/login/agreement",
+      "style": {
+        "navigationBarTitleText": "用户协议",
+        "navigationStyle": "default"
+      }
+    },
+    {
+      "path": "pages/login/privacy",
+      "style": {
+        "navigationBarTitleText": "隐私政策",
+        "navigationStyle": "default"
+      }
+    }
+  ],
+  "tabBar": {
+    "color": "#666666",
+    "selectedColor": "#14CCCC",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/customer/index",
+        "text": "客户中心",
+        "iconPath": "static/icons/home.png",
+        "selectedIconPath": "static/icons/homed.png"
+      },
+      {
+        "pagePath": "pages/task/index",
+        "text": "任务广场",
+        "iconPath": "static/icons/project.png",
+        "selectedIconPath": "static/icons/projected.png",
+        "visible": true
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "更多",
+        "iconPath": "static/icons/link.png",
+        "selectedIconPath": "static/icons/linked.png"
+      }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8",
+    "navigationBarTitleText": "",
+    "navigationStyle": "custom"
+  },
+  "uniIdRouter": {}
+}

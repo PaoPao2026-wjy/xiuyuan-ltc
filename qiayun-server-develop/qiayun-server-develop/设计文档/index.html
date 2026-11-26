@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiMorning - 原型稿</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="pages.css">
+</head>
+<body data-theme="sunrise">
+    <div class="app-container">
+        <!-- 早晚打卡页 -->
+        <div id="checkin-page" class="page active">
+            <div class="page-content">
+                <div class="status-header fade-in">
+                    <h1 class="page-title">🌅 早安打卡</h1>
+                    <p class="status-text">新的一天开始了，记录美好的瞬间</p>
+                </div>
+
+                <!-- 上传图片区域 -->
+                <div class="upload-section card slide-up">
+                    <h3 class="section-title">📷 分享今日美好</h3>
+                    <div class="upload-area">
+                        <div class="upload-placeholder">
+                            <span class="upload-icon">📸</span>
+                            <p>点击上传图片</p>
+                            <small>支持拍照或从相册选择</small>
+                        </div>
+                        <input type="file" id="photo-upload" accept="image/*" style="display: none;">
+                    </div>
+                </div>
+
+                <!-- 心语输入区域 -->
+                <div class="mood-input-section card slide-up">
+                    <h3 class="section-title">✍️ 今日心语</h3>
+                    <textarea 
+                        class="textarea-field" 
+                        placeholder="分享你的感受吧～比如：今天的阳光特别温暖，让我感到很幸福..."
+                        maxlength="200"
+                    ></textarea>
+                    <div class="char-count">0/200</div>
+                </div>
+
+                <!-- 心情选择 -->
+                <div class="mood-selector card slide-up">
+                    <h3 class="section-title">😊 今日心情</h3>
+                    <div class="mood-options">
+                        <div class="mood-option" data-mood="happy">
+                            <span class="mood-emoji">😊</span>
+                            <span class="mood-label">开心</span>
+                        </div>
+                        <div class="mood-option" data-mood="calm">
+                            <span class="mood-emoji">😌</span>
+                            <span class="mood-label">平静</span>
+                        </div>
+                        <div class="mood-option" data-mood="tired">
+                            <span class="mood-emoji">😴</span>
+                            <span class="mood-label">疲惫</span>
+                        </div>
+                        <div class="mood-option" data-mood="excited">
+                            <span class="mood-emoji">🤗</span>
+                            <span class="mood-label">兴奋</span>
+                        </div>
+                        <div class="mood-option" data-mood="thoughtful">
+                            <span class="mood-emoji">🤔</span>
+                            <span class="mood-label">思考</span>
+                        </div>
+                        <div class="mood-option" data-mood="grateful">
+                            <span class="mood-emoji">🙏</span>
+                            <span class="mood-label">感恩</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 完成打卡按钮 -->
+                <div class="action-section">
+                    <button class="btn btn-primary complete-checkin">
+                        ✨ 完成打卡
+                    </button>
+                </div>
+
+                <!-- 历史打卡入口 -->
+                <div class="history-section card slide-up">
+                    <div class="history-header" onclick="toggleHistory()">
+                        <h3 class="section-title">📅 历史打卡</h3>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="history-content" style="display: none;">
+                        <div class="history-item">
+                            <div class="history-date">昨天 · 晚安</div>
+                            <div class="history-mood">😌 平静</div>
+                            <div class="history-text">今天完成了很多事情，感觉很充实</div>
+                        </div>
+                        <div class="history-item">
+                            <div class="history-date">昨天 · 早安</div>
+                            <div class="history-mood">😊 开心</div>
+                            <div class="history-text">阳光明媚的早晨，心情特别好</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 热点内容页 -->
+        <div id="news-page" class="page">
+            <div class="page-content">
+                <h1 class="page-title">📰 今日热点</h1>
+                
+                <!-- 分类筛选 -->
+                <div class="category-filter slide-up">
+                    <button class="filter-btn active" data-category="recommended">今日推荐</button>
+                    <button class="filter-btn" data-category="psychology">心理健康</button>
+                    <button class="filter-btn" data-category="lifestyle">生活方式</button>
+                    <button class="filter-btn" data-category="growth">个人成长</button>
+                </div>
+
+                <!-- 资讯列表 -->
+                <div class="news-list">
+                    <article class="news-card card slide-up">
+                        <div class="news-image">
+                            <div class="placeholder-image">🌅</div>
+                        </div>
+                        <div class="news-content">
+                            <h3 class="news-title">如何培养早起的习惯？5个科学方法助你成为晨型人</h3>
+                            <p class="news-summary">早起不仅能让你拥有更多时间，还能提升整体的生活质量。本文将分享5个经过科学验证的方法...</p>
+                            <div class="news-meta">
+                                <span class="news-category">生活方式</span>
+                                <span class="news-time">2小时前</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="news-card card slide-up">
+                        <div class="news-image">
+                            <div class="placeholder-image">🧘</div>
+                        </div>
+                        <div class="news-content">
+                            <h3 class="news-title">冥想5分钟，胜过焦虑一整天</h3>
+                            <p class="news-summary">研究表明，短时间的冥想练习能够显著降低压力水平，提升专注力和情绪稳定性...</p>
+                            <div class="news-meta">
+                                <span class="news-category">心理健康</span>
+                                <span class="news-time">4小时前</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="news-card card slide-up">
+                        <div class="news-image">
+                            <div class="placeholder-image">📚</div>
+                        </div>
+                        <div class="news-content">
+                            <h3 class="news-title">每天阅读30分钟，一年后你会有什么改变？</h3>
+                            <p class="news-summary">阅读是最低成本的自我提升方式。坚持每天阅读30分钟，一年下来你将收获意想不到的成长...</p>
+                            <div class="news-meta">
+                                <span class="news-category">个人成长</span>
+                                <span class="news-time">6小时前</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI心语页 -->
+        <div id="ai-chat-page" class="page">
+            <div class="page-content">
+                <!-- AI角色切换 -->
+                <div class="ai-character-section slide-up">
+                    <h2 class="page-title">🤖 AI心语陪伴</h2>
+                    <div class="character-selector">
+                        <button class="character-btn active" data-character="gentle">
+                            <span class="character-avatar">🌸</span>
+                            <span class="character-name">温柔小语</span>
+                        </button>
+                        <button class="character-btn" data-character="sunny">
+                            <span class="character-avatar">☀️</span>
+                            <span class="character-name">阳光小伙伴</span>
+                        </button>
+                        <button class="character-btn" data-character="wise">
+                            <span class="character-avatar">🌙</span>
+                            <span class="character-name">智慧大哥哥</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 聊天区域 -->
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="message ai-message slide-up">
+                            <div class="message-avatar">🌸</div>
+                            <div class="message-content">
+                                <p>你好呀！我是温柔小语，很高兴陪伴你。今天过得怎么样呢？有什么想要分享的吗？ 😊</p>
+                            </div>
+                        </div>
+                        
+                        <div class="message user-message slide-up">
+                            <div class="message-content">
+                                <p>今天工作有点累，感觉压力很大</p>
+                            </div>
+                        </div>
+
+                        <div class="message ai-message slide-up">
+                            <div class="message-avatar">🌸</div>
+                            <div class="message-content">
+                                <p>听起来你今天过得不容易，来个大大的拥抱 🤗。工作压力大是很正常的，你愿意告诉我具体是什么让你感到压力吗？</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 输入区域 -->
+                <div class="chat-input-section">
+                    <div class="input-container">
+                        <input type="text" class="chat-input" placeholder="输入你想说的话...">
+                        <button class="voice-btn" title="语音输入">🎤</button>
+                        <button class="send-btn">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 个人中心页 -->
+        <div id="profile-page" class="page">
+            <div class="page-content">
+                <h1 class="page-title">👤 个人中心</h1>
+
+                <!-- 用户信息卡片 -->
+                <div class="user-info-card card slide-up">
+                    <div class="user-avatar">
+                        <div class="avatar-placeholder">👤</div>
+                    </div>
+                    <div class="user-details">
+                        <h3 class="user-name">晨光小伙伴</h3>
+                        <p class="user-stats">已坚持打卡 <strong>28</strong> 天</p>
+                        <div class="streak-indicator">
+                            <span class="streak-icon">🔥</span>
+                            <span class="streak-text">连续打卡 7 天</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据统计 -->
+                <div class="stats-section card slide-up">
+                    <h3 class="section-title">📊 我的数据</h3>
+                    <div class="mood-chart-placeholder">
+                        <div class="chart-title">近7天心情变化</div>
+                        <div class="chart-visual">
+                            <div class="mood-bar" style="height: 60%;">😊</div>
+                            <div class="mood-bar" style="height: 80%;">😌</div>
+                            <div class="mood-bar" style="height: 40%;">😴</div>
+                            <div class="mood-bar" style="height: 90%;">🤗</div>
+                            <div class="mood-bar" style="height: 70%;">🤔</div>
+                            <div class="mood-bar" style="height: 85%;">🙏</div>
+                            <div class="mood-bar" style="height: 75%;">😊</div>
+                        </div>
+                        <div class="chart-labels">
+                            <span>周一</span>
+                            <span>周二</span>
+                            <span>周三</span>
+                            <span>周四</span>
+                            <span>周五</span>
+                            <span>周六</span>
+                            <span>今天</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 设置选项 -->
+                <div class="settings-section">
+                    <div class="setting-item card slide-up">
+                        <div class="setting-icon">🔔</div>
+                        <div class="setting-content">
+                            <h4>通知提醒</h4>
+                            <p>设置打卡提醒时间</p>
+                        </div>
+                        <div class="setting-arrow">></div>
+                    </div>
+
+                    <div class="setting-item card slide-up" onclick="openThemeSelector()">
+                        <div class="setting-icon">🎨</div>
+                        <div class="setting-content">
+                            <h4>偏好主题</h4>
+                            <p>选择你喜欢的界面主题</p>
+                        </div>
+                        <div class="setting-arrow">></div>
+                    </div>
+
+                    <div class="setting-item card slide-up" onclick="openShareGrowthDialog()">
+                        <div class="setting-icon">🌟</div>
+                        <div class="setting-content">
+                            <h4>分享成长</h4>
+                            <p>制作成长海报，分享美好时光</p>
+                        </div>
+                        <div class="setting-arrow">></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部导航 -->
+        <nav class="bottom-nav">
+            <a href="#" class="nav-item active" data-page="checkin-page">
+                <div class="nav-icon">🌅</div>
+                <div class="nav-text">早晚打卡</div>
+            </a>
+            <a href="#" class="nav-item" data-page="news-page">
+                <div class="nav-icon">📰</div>
+                <div class="nav-text">热点</div>
+            </a>
+            <a href="#" class="nav-item" data-page="ai-chat-page">
+                <div class="nav-icon">🤖</div>
+                <div class="nav-text">AI心语</div>
+            </a>
+            <a href="#" class="nav-item" data-page="profile-page">
+                <div class="nav-icon">👤</div>
+                <div class="nav-text">我</div>
+            </a>
+        </nav>
+
+        <!-- 主题选择弹窗 -->
+        <div id="theme-modal" class="theme-modal">
+            <div class="theme-modal-content">
+                <div class="theme-modal-header">
+                    <h3>🎨 偏好主题</h3>
+                    <button class="theme-close-btn" onclick="closeThemeSelector()">×</button>
+                </div>
+                
+                <div class="theme-options">
+                    <div class="theme-option" data-theme="sunrise" onclick="selectTheme('sunrise')">
+                        <div class="theme-preview sunrise-theme">
+                            <div class="preview-header"></div>
+                            <div class="preview-content">
+                                <div class="preview-card"></div>
+                                <div class="preview-button"></div>
+                            </div>
+                        </div>
+                        <div class="theme-info">
+                            <h4>🌅 日出橙</h4>
+                            <p>温暖活力的早晨色调</p>
+                        </div>
+                        <div class="theme-check">✓</div>
+                    </div>
+
+                    <div class="theme-option" data-theme="morning" onclick="selectTheme('morning')">
+                        <div class="theme-preview morning-theme">
+                            <div class="preview-header"></div>
+                            <div class="preview-content">
+                                <div class="preview-card"></div>
+                                <div class="preview-button"></div>
+                            </div>
+                        </div>
+                        <div class="theme-info">
+                            <h4>🌤️ 晨雾蓝</h4>
+                            <p>宁静舒缓的天空色彩</p>
+                        </div>
+                        <div class="theme-check">✓</div>
+                    </div>
+
+                    <div class="theme-option" data-theme="almond" onclick="selectTheme('almond')">
+                        <div class="theme-preview almond-theme">
+                            <div class="preview-header"></div>
+                            <div class="preview-content">
+                                <div class="preview-card"></div>
+                                <div class="preview-button"></div>
+                            </div>
+                        </div>
+                        <div class="theme-info">
+                            <h4>🌰 杏仁米</h4>
+                            <p>自然温柔的大地色调</p>
+                        </div>
+                        <div class="theme-check">✓</div>
+                    </div>
+
+                    <div class="theme-option" data-theme="purple" onclick="selectTheme('purple')">
+                        <div class="theme-preview purple-theme">
+                            <div class="preview-header"></div>
+                            <div class="preview-content">
+                                <div class="preview-card"></div>
+                                <div class="preview-button"></div>
+                            </div>
+                        </div>
+                        <div class="theme-info">
+                            <h4>🌸 静谧紫</h4>
+                            <p>优雅神秘的薰衣草色</p>
+                        </div>
+                        <div class="theme-check">✓</div>
+                    </div>
+
+                    <div class="theme-option" data-theme="sunset" onclick="selectTheme('sunset')">
+                        <div class="theme-preview sunset-theme">
+                            <div class="preview-header"></div>
+                            <div class="preview-content">
+                                <div class="preview-card"></div>
+                                <div class="preview-button"></div>
+                            </div>
+                        </div>
+                        <div class="theme-info">
+                            <h4>🌅 落日粉</h4>
+                            <p>浪漫温柔的晚霞色彩</p>
+                        </div>
+                        <div class="theme-check">✓</div>
+                    </div>
+                </div>
+
+                <div class="theme-modal-footer">
+                    <button class="btn btn-secondary" onclick="closeThemeSelector()">取消</button>
+                    <button class="btn btn-primary" onclick="applyTheme()">应用主题</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分享成长弹窗 -->
+        <div id="share-growth-modal" class="share-growth-modal">
+            <div class="share-growth-modal-content">
+                <div class="share-growth-modal-header">
+                    <h3>🌟 分享成长</h3>
+                    <button class="share-close-btn" onclick="closeShareGrowthDialog()">×</button>
+                </div>
+                
+                <div class="share-options">
+                    <div class="share-option" onclick="createGrowthPoster()">
+                        <div class="share-option-icon">📸</div>
+                        <div class="share-option-content">
+                            <h4>制作成长海报</h4>
+                            <p>生成精美的个人成长海报</p>
+                        </div>
+                        <div class="share-option-arrow">></div>
+                    </div>
+
+                    <div class="share-option" onclick="createDataReport()">
+                        <div class="share-option-icon">📊</div>
+                        <div class="share-option-content">
+                            <h4>数据洞察报告</h4>
+                            <p>查看个人情绪变化趋势</p>
+                        </div>
+                        <div class="share-option-arrow">></div>
+                    </div>
+
+                    <div class="share-option" onclick="createPhotoAlbum()">
+                        <div class="share-option-icon">📱</div>
+                        <div class="share-option-content">
+                            <h4>美好时光相册</h4>
+                            <p>整理打卡照片制作相册</p>
+                        </div>
+                        <div class="share-option-arrow">></div>
+                    </div>
+
+                    <div class="share-option" onclick="generateShareLink()">
+                        <div class="share-option-icon">🔗</div>
+                        <div class="share-option-content">
+                            <h4>生成分享链接</h4>
+                            <p>创建专属成长页面链接</p>
+                        </div>
+                        <div class="share-option-arrow">></div>
+                    </div>
+
+                    <div class="share-option" onclick="backupToCloud()">
+                        <div class="share-option-icon">☁️</div>
+                        <div class="share-option-content">
+                            <h4>云端备份</h4>
+                            <p>将数据安全备份到云端</p>
+                        </div>
+                        <div class="share-option-arrow">></div>
+                    </div>
+                </div>
+
+                <div class="recent-shares">
+                    <h4>🕐 最近制作</h4>
+                    <div class="recent-share-item">
+                        <div class="recent-thumbnail">📊</div>
+                        <div class="recent-info">
+                            <span class="recent-title">12月成长报告</span>
+                            <span class="recent-date">3天前</span>
+                        </div>
+                        <button class="recent-share-btn" onclick="shareRecent('report')">分享</button>
+                    </div>
+                    <div class="recent-share-item">
+                        <div class="recent-thumbnail">📸</div>
+                        <div class="recent-info">
+                            <span class="recent-title">冬日心情海报</span>
+                            <span class="recent-date">1周前</span>
+                        </div>
+                        <button class="recent-share-btn" onclick="shareRecent('poster')">分享</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 成长海报生成器 -->
+        <div id="poster-generator-modal" class="poster-generator-modal">
+            <div class="poster-generator-content">
+                <div class="poster-generator-header">
+                    <button class="back-btn" onclick="backToShareOptions()">‹</button>
+                    <h3>📸 制作成长海报</h3>
+                    <button class="poster-close-btn" onclick="closePosterGenerator()">×</button>
+                </div>
+                
+                <div class="poster-templates">
+                    <h4>选择模板</h4>
+                    <div class="template-grid">
+                        <div class="template-item active" data-template="growth">
+                            <div class="template-preview growth-template">
+                                <div class="template-title">我的成长</div>
+                                <div class="template-stats">28天坚持</div>
+                                <div class="template-chart"></div>
+                            </div>
+                            <span class="template-name">成长轨迹</span>
+                        </div>
+                        
+                        <div class="template-item" data-template="mood">
+                            <div class="template-preview mood-template">
+                                <div class="template-title">心情日记</div>
+                                <div class="template-emoji">😊😌🤗</div>
+                                <div class="template-text">美好时光</div>
+                            </div>
+                            <span class="template-name">心情记录</span>
+                        </div>
+
+                        <div class="template-item" data-template="achievement">
+                            <div class="template-preview achievement-template">
+                                <div class="template-title">坚持成就</div>
+                                <div class="template-badge">🏆</div>
+                                <div class="template-desc">连续打卡</div>
+                            </div>
+                            <span class="template-name">成就证书</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="poster-customization">
+                    <h4>个性化设置</h4>
+                    <div class="custom-options">
+                        <div class="custom-option">
+                            <label>时间范围</label>
+                            <select class="custom-select">
+                                <option value="week">最近一周</option>
+                                <option value="month" selected>最近一月</option>
+                                <option value="quarter">最近三月</option>
+                                <option value="year">最近一年</option>
+                            </select>
+                        </div>
+                        <div class="custom-option">
+                            <label>包含内容</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" checked> 打卡照片
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" checked> 心语文字
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox"> 情绪统计
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="poster-actions">
+                    <button class="btn btn-secondary" onclick="previewPoster()">预览效果</button>
+                    <button class="btn btn-primary" onclick="generatePoster()">生成海报</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html> 

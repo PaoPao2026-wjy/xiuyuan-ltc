@@ -1,0 +1,915 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL") // 时区对齐用
+}
+
+/// 后台用户角色枚举
+enum AdminRole {
+  ADMIN    /// 超级管理员
+  MANAGER  /// 部门经理
+  STAFF    /// 普通员工
+}
+
+/// 后台用户状态枚举
+enum AdminStatus {
+  ACTIVE   /// 活跃
+  INACTIVE /// 不活跃
+  LOCKED   /// 锁定
+}
+
+/// 后台系统用户表（仅用于后台管理系统登录）
+model AdminUser {
+  adminId     Int         @id @default(autoincrement()) @map("admin_id") /// 主键ID
+  username    String      @unique @map("username") @db.VarChar(50) /// 登录用户名（唯一）
+  password    String      @map("password") @db.VarChar(100) /// 加密密码（必填）
+  realName    String      @map("real_name") @db.VarChar(50) /// 真实姓名（必填）
+  phone       String      @unique @map("phone") @db.VarChar(20) /// 手机号（唯一）
+  email       String?     @unique @map("email") @db.VarChar(100) /// 邮箱（可选）
+  role        AdminRole   @map("role") /// 角色（控制权限）
+  avatar      String?     @map("avatar") @db.VarChar(200) /// 头像URL（可选）
+  status      AdminStatus @default(ACTIVE) @map("status") /// 状态（默认活跃）
+  
+  createdAt   DateTime?   @db.DateTime(3) @map("created_at") /// 创建时间（东八区，3位毫秒）
+  updatedAt   DateTime?   @db.DateTime(3) @map("updated_at") /// 更新时间（自动刷新）
+  lastLoginAt DateTime?   @db.DateTime(3) @map("last_login_at") /// 最后登录时间（可选）
+  
+  // 逻辑删除字段
+  isDeleted   Boolean     @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt   DateTime?   @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 反向关联：维保模板、工单、草稿、指派单（双向关联必备）
+  maintenanceTemplates  MaintenanceTemplate[]  @relation("AdminToMaintenanceTemplate")
+  workOrders            WorkOrder[]            @relation("AdminToWorkOrder")
+  workOrderDrafts       WorkOrderDraft[]       @relation("AdminToWorkOrderDraft")
+  assignments           WorkOrderAssignment[]  @relation("AdminToWorkOrderAssignment")
+  // 管理员创建的工单模板（反向关联 WorkOrderTemplate）
+  workOrderTemplates    WorkOrderTemplate[]    @relation("AdminToWorkOrderTemplate")
+
+   //管理员创建的设备模板
+  equipmentTemplates    EquipmentTemplate[]    @relation("AdminToEquipmentTemplate")
+
+  // 索引配置
+  @@index([phone], name: "idx_admin_phone")
+  @@index([role, status], name: "idx_admin_role_status")
+  @@index([isDeleted, deletedAt], name: "idx_admin_deleted") // 逻辑删除索引
+  @@map("admin_users")
+}
+
+/// 微信用户性别枚举
+enum WechatGender {
+  MALE    /// 男性
+  FEMALE  /// 女性
+  UNKNOWN /// 未知
+}
+
+/// 小程序登录角色（企业端/个人端）
+enum LoginRole {
+  ENTERPRISE /// 企业端
+  INDIVIDUAL  /// 个人端（电工）
+}
+
+/// 实名认证状态
+enum RealAuthStatus {
+  UNAUTHORIZED /// 未认证
+  AUDITING     /// 审核中
+  AUTHORIZED   /// 已认证
+  REJECTED     /// 已驳回
+}
+
+/// 从业状态（在职/非在职）
+enum EmploymentStatus {
+  ON_THE_JOB  /// 在职
+  UNEMPLOYED  /// 非在职
+}
+
+/// 人员证件类型（扩展可新增）
+enum CertificateType {
+  HIGH_VOLTAGE /// 高压作业证
+  TEST         /// 电气试验证
+  SAFETY       /// 安全管理证
+  OTHER        /// 其他证件
+}
+
+/// 微信用户表（与电工表一对一、与企业表多对一）
+model WechatUser {
+  wechatId      Int               @id @default(autoincrement()) @map("wechat_id") /// 主键ID
+  openid        String            @map("openid") @db.VarChar(100) /// 微信应用唯一标识
+  unionid       String?           @unique @map("unionid") @db.VarChar(100) /// 跨应用唯一标识
+  nickname      String?           @map("nickname") @db.VarChar(100) /// 微信昵称
+  contactName     String?         @db.VarChar(50)  // 联系人姓名（选填）
+  contactPosition String?         @db.VarChar(50)  // 联系人职务（选填）企业端使用
+  avatarUrl     String?           @map("avatar_url") @db.VarChar(500) /// 头像URL
+  gender        WechatGender      @default(UNKNOWN) @map("gender") /// 性别
+  phone         String?           @map("phone") @db.VarChar(20) /// 手机号
+  country       String?           @map("country") @db.VarChar(50) /// 国家
+  province      String?           @map("province") @db.VarChar(50) /// 省份
+  city          String?           @map("city") @db.VarChar(50) /// 城市
+  language      String?           @map("language") @db.VarChar(20) /// 微信语言设置
+  status        String            @default("normal") @map("status") /// 微信用户状态
+  
+  loginRole     LoginRole         @default(INDIVIDUAL) @map("login_role") /// 登录角色（企业端/个人端）
+
+  // 核心：关联企业的外键（多对一）
+  enterpriseId  Int?              @map("enterprise_id") /// 关联企业ID（外键，可选）
+
+  createdAt     DateTime?         @db.DateTime(3) @map("created_at") /// 首次授权时间
+  updatedAt     DateTime?         @db.DateTime(3) @map("updated_at") /// 更新时间
+  lastLoginAt   DateTime?         @db.DateTime(3) @map("last_login_at") /// 最后登录时间
+  
+  // 逻辑删除字段
+  isDeleted     Boolean           @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt     DateTime?         @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 关联关系（仅保留正确配置）
+  technician    Technician?       @relation("WechatToTechnician") // 与电工一对一（原有）
+  // 与企业多对一：关联名称统一为 EnterpriseToWechatUsers
+  enterprise    Enterprise?       @relation("EnterpriseToWechatUsers", fields: [enterpriseId], references: [id], onDelete: Restrict)
+
+  // 索引配置
+  @@index([phone], name: "idx_wechat_phone")
+  @@index([openid], name: "idx_wechat_openid")
+  @@index([loginRole], name: "idx_wechat_login_role")
+  @@index([enterpriseId], name: "idx_wechat_enterprise_id")
+  @@index([isDeleted, deletedAt], name: "idx_wechat_deleted")
+  @@map("wechat_users")
+}
+
+/// 电工工作状态枚举
+enum TechnicianWorkStatus {
+  AVAILABLE /// 可接单
+  BUSY      /// 忙碌中
+  OFFLINE   /// 下线
+}
+
+/// 电工账号状态枚举
+enum TechnicianStatus {
+  ACTIVE   /// 启用
+  INACTIVE /// 禁用
+}
+
+/// 电工表（关联微信用户表，一对一）
+model Technician {
+  technicianId     Int                  @id @default(autoincrement()) @map("technician_id") /// 主键ID
+  wechatId         Int                  @unique @map("wechat_id") /// 关联微信用户ID（外键）
+  realName         String?               @map("real_name") @db.VarChar(50) /// 姓名（选填）
+  phone            String?              @map("phone") @db.VarChar(20) /// 手机号（选填）
+  jobName          String?              @map("job_name") @db.VarChar(20) /// 职位（选填）
+  skills           Json?                @map("skills") /// 技能标签（JSON数组）
+  certificates     Json?                @map("certificates") /// 证书列表（JSON数组）
+  experienceYears  Int?                  @default(0) @map("experience_years") /// 工作年限
+  rating           Decimal?              @default(5.0) @map("rating") @db.Decimal(3, 2) /// 评分
+  points           Int                  @default(0) @map("points") /// 积分总数（默认0）
+  pointsUpdatedAt  DateTime?            @db.DateTime(3) @map("points_updated_at") /// 积分最后更新时间
+  totalOrders      Int                  @default(0) @map("total_orders") /// 总工单数
+  completedOrders  Int                  @default(0) @map("completed_orders") /// 已完成工单数
+  rejectedOrders   Int                  @default(0) @map("rejected_orders") /// 拒绝工单数
+  workStatus       TechnicianWorkStatus @default(AVAILABLE) @map("work_status") /// 工作状态
+  locationLat      Decimal?             @map("location_lat") @db.Decimal(10, 6) /// 位置纬度
+  locationLng      Decimal?             @map("location_lng") @db.Decimal(10, 6) /// 位置经度
+  status           TechnicianStatus     @default(ACTIVE) @map("status") /// 账号状态
+
+    // ===================== 新增字段 =====================
+  idCardNo         String?              @unique @map("id_card_no") @db.VarChar(18) /// 身份证号（唯一）
+  idCardFrontPhoto String?              @map("id_card_front_photo") @db.VarChar(500) /// 身份证正面照片URL
+  idCardBackPhoto  String?              @map("id_card_back_photo") @db.VarChar(500) /// 身份证背面照片URL
+  realAuthStatus   RealAuthStatus       @default(UNAUTHORIZED) @map("real_auth_status") /// 实名认证状态
+  realAuthRejectReason String?          @map("real_auth_reject_reason") @db.Text /// 实名认证驳回原因
+  employmentStatus EmploymentStatus     @default(ON_THE_JOB) @map("employment_status") /// 从业状态（在职/非在职）
+  workExperience   Json?                @map("work_experience") /// 从业资历（项目经历）JSON数组
+
+
+  createdAt        DateTime?            @db.DateTime(3) @map("created_at") /// 创建时间
+  updatedAt        DateTime?            @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除字段
+  isDeleted        Boolean              @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt        DateTime?            @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 双向关联：微信用户（一对一，指定唯一外键名避免重复）
+  wechatUser       WechatUser?          @relation("WechatToTechnician", fields: [wechatId], references: [wechatId], onDelete: Restrict)
+  // 双向关联：指派单、工单处理记录（一对多）
+  assignments          WorkOrderAssignment[]   @relation("TechnicianToWorkOrderAssignment")
+  workOrderTechnicians WorkOrderTechnician[]   @relation("TechnicianToWorkOrderTechnician")
+   // 双向关联：新增电工与企业的关联关系（通过中间表）
+  enterpriseRelations  EnterpriseTechnicianRelation[]  @relation("TechnicianToEnterprise")
+    // 积分日志的反向关联（名称和TechnicianPointsLog中一致）
+  technicianPointsLogs  TechnicianPointsLog[]  @relation("TechnicianToPointsLog")
+
+  // 索引配置
+  @@index([wechatId], name: "idx_tech_wechat_id")
+  @@index([phone], name: "idx_tech_phone")
+  @@index([idCardNo], name: "idx_tech_id_card") // 新增
+  @@index([realAuthStatus], name: "idx_tech_auth_status") // 新增
+  @@index([employmentStatus], name: "idx_tech_employment_status") // 新增
+  @@index([workStatus, status], name: "idx_tech_work_status")
+  @@index([locationLat, locationLng], name: "idx_tech_location")
+  @@index([isDeleted, deletedAt], name: "idx_tech_deleted") // 逻辑删除索引
+  @@map("technicians")
+}
+
+// 先定义积分变动类型枚举
+enum PointsChangeType {
+  COMPLETE_ORDER   /// 完成工单（+200）
+  DEDUCT           /// 积分扣减（比如违规扣积分，-N）
+  EXPIRE           /// 积分过期（-N）
+  MANUAL_ADJUST    /// 管理员手动调整（±N）
+  REWARD           /// 额外奖励（比如节日奖励，+N）
+  EXCHANGE         /// 积分兑换（-N）
+  OTHER            /// 其他变动
+}
+
+/// 电工积分变动日志表（核心：记录每一笔积分变动）
+model TechnicianPointsLog {
+  // 基础字段
+  logId           Int                  @id @default(autoincrement()) @map("log_id") /// 日志主键
+  technicianId    Int                  @map("technician_id") /// 关联电工ID
+  pointsChange    Int                  @map("points_change") /// 积分变动值（+200/-50，正数加、负数减）
+  pointsAfter     Int                  @map("points_after") /// 变动后总积分（便于快速查询，无需计算）
+  type            PointsChangeType     @map("type") /// 变动类型（枚举，规范操作类型）
+  relatedOrderId  Int?                 @map("related_order_id") /// 关联工单ID（完成工单/扣减工单积分时填写）
+  reason          String               @map("reason") @db.Text /// 变动原因（必填，便于溯源）
+  operatorId      Int?                 @map("operator_id") /// 操作人ID（系统自动填0，管理员手动调整填管理员ID）
+  operatorType    String?              @map("operator_type") @db.VarChar(20) /// 操作人类型（system/ admin/ technician）
+  
+  // 时间字段
+  createdAt       DateTime             @db.DateTime(3) @map("created_at") /// 变动时间
+  updatedAt       DateTime?            @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除
+  isDeleted       Boolean              @default(false) @map("is_deleted")
+  deletedAt       DateTime?            @db.DateTime(3) @map("deleted_at")
+
+  technician      Technician           @relation("TechnicianToPointsLog", fields: [technicianId], references: [technicianId], onDelete: Restrict)
+
+
+  // 索引（核心查询维度）
+  @@index([technicianId], name: "idx_points_log_tech_id") /// 按电工查所有变动
+  @@index([technicianId, type], name: "idx_tech_type") /// 按电工+类型查（比如查所有完成工单的积分）
+  @@index([relatedOrderId], name: "idx_points_log_order_id") /// 按工单查积分变动
+  @@index([createdAt], name: "idx_points_log_create_time") /// 按时间范围查
+  @@index([isDeleted], name: "idx_points_log_deleted")
+  @@map("technician_points_log")
+}
+
+/// 企业-电工关联关系表（多对多中间表，记录企业与电工的合作关系）
+model EnterpriseTechnicianRelation {
+  // 复合主键：企业ID + 电工ID（确保一对关系唯一）
+  enterpriseId    Int                  @map("enterprise_id") /// 关联企业ID
+  technicianId    Int                  @map("technician_id") /// 关联电工ID
+
+  // 关联关系（双向关联）
+  enterprise      Enterprise           @relation("EnterpriseToTechnician", fields: [enterpriseId], references: [id], onDelete: Cascade) /// 企业删除时级联删除关联记录
+  technician      Technician           @relation("TechnicianToEnterprise", fields: [technicianId], references: [technicianId], onDelete: Cascade) /// 电工删除时级联删除关联记录
+
+  // 关联状态（控制合作关系有效性）
+  status          RelationStatus       @default(ACTIVE) @map("status") /// 关联状态（默认启用）
+  // 关联备注（可选，如“负责高压设备维保”）
+  remark          String?              @db.Text @map("remark") /// 关联备注
+
+  // 时间字段
+  createdAt       DateTime             @db.DateTime(3) @map("created_at") /// 关联创建时间
+  updatedAt       DateTime             @db.DateTime(3) @map("updated_at") /// 关联更新时间
+
+  // 逻辑删除字段（与其他表保持一致）
+  isDeleted       Boolean              @default(false) @map("is_deleted") /// 是否删除
+  deletedAt       DateTime?            @db.DateTime(3) @map("deleted_at") /// 删除时间
+
+  // 复合主键配置
+  @@id([enterpriseId, technicianId])
+  // 索引配置（优化查询效率）
+  @@index([enterpriseId, status, isDeleted], name: "idx_enterprise_tech_status") /// 按企业+状态查询关联电工
+  @@index([technicianId, status, isDeleted], name: "idx_tech_enterprise_status") /// 按电工+状态查询关联企业
+  @@index([isDeleted, deletedAt], name: "idx_enterprise_tech_deleted") /// 逻辑删除索引
+  @@map("enterprise_technician_relations")
+}
+
+// 新增关联状态枚举（控制企业与电工的合作关系有效性）
+enum RelationStatus {
+  ACTIVE   /// 启用（正常合作）
+  INACTIVE /// 停用（暂停合作）
+}
+
+/// 企业类型枚举
+enum EnterpriseType {
+  STATE_OWNED   // 国有企业
+  PRIVATE       // 民营企业
+  FOREIGN       // 外资企业
+  JOINT_VENTURE // 合资企业
+}
+
+/// 企业表
+model Enterprise {
+  id              Int              @id @default(autoincrement())
+  createdAt       DateTime?        @db.DateTime(3) /// 创建时间（东八区）
+  updatedAt       DateTime?        @db.DateTime(3) /// 更新时间（自动刷新）
+
+  enterpriseName  String           @db.VarChar(255) // 企业名称（必填）
+  enterpriseType  EnterpriseType   // 企业类型（枚举）
+  enterpriseAddress String         @db.VarChar(255) // 企业地址（必填）
+  contactPhone    String           @db.VarChar(50)  // 企业固定联系电话（必填）
+  enterpriseEmail String?          @db.VarChar(100) // 企业邮箱（选填）
+
+  // 联系人（原有+新增）
+  contactName     String?          @db.VarChar(50)  // 第一联系人姓名（选填）
+  contactPosition String?          @db.VarChar(50)  // 第一联系人职务（选填）
+  contactMobile   String?          @db.VarChar(50)  // 第一联系人电话（选填）
+  contactEmail    String?          @db.VarChar(100) // 第一联系人邮箱（选填）
+  contactName2    String?          @db.VarChar(50) @map("contact_name2") /// 第二联系人姓名（选填）
+  contactMobile2  String?          @db.VarChar(50) @map("contact_mobile2") /// 第二联系人电话（选填）
+  contactName3    String?          @db.VarChar(50) @map("contact_name3") /// 第三联系人姓名（选填）
+  contactMobile3  String?          @db.VarChar(50) @map("contact_mobile3") /// 第三联系人电话（选填）
+
+  // 其他原有字段（户号/设备/实名认证等）
+  enterpriseUserNo1 String?        @db.VarChar(50) // 户号1（选填）
+  enterpriseUserNo2 String?        @db.VarChar(50) // 户号2（选填）
+  enterpriseMeterNo1 String?       @db.VarChar(50) // 表号1（选填）
+  enterpriseMeterNo2 String?       @db.VarChar(50) // 表号2（选填）
+  transformerCapacity1 Decimal?    @db.Decimal(10, 2) // 变压器容量1（选填）
+  transformerCapacity2 Decimal?    @db.Decimal(10, 2) // 变压器容量2（选填）
+  usageCapacity1 Decimal?         @db.Decimal(10, 2) // 使用容量1（选填）
+  usageCapacity2 Decimal?         @db.Decimal(10, 2) // 使用容量2（选填）
+  powerSupplyMode String?         @db.VarChar(50) // 进线方式（选填）
+  powerSupplyMaintenanceType String? @db.VarChar(50) // 进线修程（选填）
+  highVoltageCabinetCount Int?    // 高压柜数量（选填）
+  transformerCount Int?           // 变压器数量（选填）
+  lowVoltageCabinetCount Int?     // 低压柜数量（选填）
+  capacitorCabinetCount Int?      // 电容柜数量（选填）
+  dcScreen String?               // 直流屏（选填）
+  operationMaintenanceUnit String? @db.VarChar(100) // 运检单位（选填）
+  electricalTestDate DateTime?    // 电试日期（选填）
+  analogScreen String?           // 模拟屏（选填）
+  safetyEquipment String?        // 安全用具（选填）
+  fireFightingEquipment String?  // 消防器材（选填）
+  ventilationEquipment String?   // 排风设备（选填）
+  airConditioner String?         // 空调（选填）
+  highResistanceScreen String?   // 高阻屏（选填）
+  socialCreditCode String?         @unique @map("social_credit_code") @db.VarChar(18) /// 统一社会信用代码（唯一）
+  businessLicensePhoto String?    @map("business_license_photo") @db.VarChar(500) /// 营业执照照片URL
+  enterpriseRealAuthStatus RealAuthStatus @default(UNAUTHORIZED) @map("enterprise_real_auth_status") /// 企业实名认证状态
+  enterpriseRealAuthRejectReason String? @map("enterprise_real_auth_reject_reason") @db.Text /// 企业认证驳回原因
+  
+  // 逻辑删除字段
+  isDeleted       Boolean          @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt       DateTime?        @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 关联关系（仅保留正确配置）
+  // 核心：一对多关联，数组类型 + 关联名称与WechatUser侧一致
+  wechatUsers     WechatUser[]     @relation("EnterpriseToWechatUsers")
+  // 其他原有关联（保留）
+  workOrders      WorkOrder[]      @relation("EnterpriseToWorkOrder")
+  workOrderDrafts WorkOrderDraft[] @relation("EnterpriseToWorkOrderDraft")
+  equipments      Equipment[]      @relation("EnterpriseToEquipment")
+  technicianRelations EnterpriseTechnicianRelation[] @relation("EnterpriseToTechnician")
+   // 审核日志的反向关联（名称和EnterpriseAuditLog中一致）
+  enterpriseAuditLogs  EnterpriseAuditLog[]  @relation("EnterpriseToAuditLog")
+
+  // 索引配置
+  @@index([enterpriseName], name: "idx_enterprise_name")
+  @@index([socialCreditCode], name: "idx_enterprise_credit_code")
+  @@index([enterpriseRealAuthStatus], name: "idx_enterprise_auth_status")
+  @@index([contactMobile2], name: "idx_enterprise_contact_mobile2")
+  @@index([contactMobile3], name: "idx_enterprise_contact_mobile3")
+  @@index([isDeleted, deletedAt], name: "idx_enterprise_deleted")
+  @@map("enterprises")
+}
+
+/// 企业审核日志表
+model EnterpriseAuditLog {
+  id                  Int                  @id @default(autoincrement())
+  enterpriseId        Int                  @map("enterprise_id")
+  operatorId          Int                  @map("operator_id") // 管理员ID
+  operatorName        String               @map("operator_name") // 管理员姓名
+  originalStatus      RealAuthStatus       @map("original_status") // 审核前状态
+  newStatus           RealAuthStatus       @map("new_status") // 审核后状态
+  rejectReason        String?              @map("reject_reason") @db.Text
+  createdAt           DateTime             @db.DateTime(3) @map("created_at")
+
+  // 关联
+  enterprise          Enterprise           @relation("EnterpriseToAuditLog", fields: [enterpriseId], references: [id], onDelete: Restrict)
+  @@index([enterpriseId], name: "idx_audit_log_enterprise_id")
+  @@index([operatorId], name: "idx_audit_log_operator_id")
+  @@map("enterprise_audit_log")
+}
+
+/// 操作项交互类型（勾选/文本/下拉）
+enum OperationType {
+  BOOLEAN   /// 布尔勾选（如“螺丝紧固”）
+  TEXT      /// 文本输入（如“备注”）
+  SELECT    /// 下拉选择（如“状态”）
+}
+
+/// 配置项（关联检查项 + 关联操作项）
+model MaintenanceTemplate {
+  id          Int                  @id @default(autoincrement()) @map("id") /// 主键ID
+  name        String               @db.VarChar(100) @map("name") /// 模板名称（必填）
+  description String?              @db.Text @map("description") /// 模板描述（可选）
+  createdBy   Int                  @map("created_by") /// 创建者ID（关联后台用户）
+  creator     AdminUser            @relation("AdminToMaintenanceTemplate", fields: [createdBy], references: [adminId], onDelete: Restrict) /// 禁止删除有模板的管理员
+  
+  createdAt   DateTime             @db.DateTime(3) @map("created_at") /// 创建时间
+  updatedAt   DateTime             @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除字段
+  isDeleted   Boolean              @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt   DateTime?            @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 模板 → 检查项（保持不变）
+  items       InspectionItem[]     @relation("TemplateToInspectionItem") // 新增关联名，避免歧义
+  //模板 → 操作项
+  operations  OperationItem[]      @relation("TemplateToOperationItem") /// 模板删除时级联删除操作项
+
+  // 索引配置（保持不变）
+  @@index([createdBy], name: "idx_template_created_by")
+  @@index([name], name: "idx_template_name")
+  @@index([isDeleted, deletedAt], name: "idx_template_deleted")
+  @@map("maintenance_templates")
+}
+
+/// 检查项表
+model InspectionItem {
+  id                Int                  @id @default(autoincrement()) @map("id") /// 主键ID
+  name              String               @db.VarChar(100) @map("name") /// 检查项名称（必填）
+  templateId        Int                  @map("template_id") /// 关联模板ID
+  // 检查项 → 模板
+  template          MaintenanceTemplate  @relation("TemplateToInspectionItem", fields: [templateId], references: [id], onDelete: Cascade) /// 模板删除时级联删除检查项
+  
+  createdAt         DateTime             @db.DateTime(3) @map("created_at") /// 创建时间
+  updatedAt         DateTime             @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除字段
+  isDeleted         Boolean              @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt         DateTime?            @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 关键修改：删除“检查项 → 操作项”的关联（原operations字段）
+
+  // 索引配置（保持不变）
+  @@index([templateId], name: "idx_inspection_template")
+  @@index([isDeleted, deletedAt], name: "idx_inspection_deleted")
+  @@map("inspection_items")
+}
+
+/// 操作项表（修改关联为：操作项 → 模板，删除与检查项的关联）
+model OperationItem {
+  id                Int                  @id @default(autoincrement()) @map("id") /// 主键ID
+  name              String               @db.VarChar(100) @map("name") /// 操作项名称（必填）
+  type              OperationType        @map("type") /// 操作类型（BOOLEAN/TEXT/SELECT）
+  options           Json?                @map("options") /// 下拉选项（JSON数组，如 ["正常", "异常"]）
+  // 新增“关联模板”的字段
+  templateId        Int                  @map("template_id") /// 关联模板ID
+  // 新增“操作项 → 模板”的关联
+  template          MaintenanceTemplate  @relation("TemplateToOperationItem", fields: [templateId], references: [id], onDelete: Cascade) /// 模板删除时级联删除操作项
+  
+  createdAt         DateTime             @db.DateTime(3) @map("created_at") /// 创建时间
+  updatedAt         DateTime             @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除字段（保持不变）
+  isDeleted         Boolean              @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt         DateTime?            @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 索引配置：删除原检查项关联索引，新增模板关联索引
+  @@index([templateId], name: "idx_operation_template") // 新增：操作项-模板关联索引
+  @@index([type], name: "idx_operation_type") // 保持不变
+  @@index([isDeleted, deletedAt], name: "idx_operation_deleted") // 保持不变
+  @@map("operation_items")
+}
+
+/// 工单类型
+enum WorkOrderType {
+  INSPECTION        /// 巡检
+  MAINTENANCE       /// 保养
+  REPAIR            /// 维修
+  ELECTRICAL_TEST   /// 电试（电气试验）
+  TRANSFORMATION    /// 改造（设备改造）
+  EMERGENCY_REPAIR  /// 抢修
+  DAILY_PURCHASE    /// 日常采购
+  TECHNICAL_GUIDANCE /// 技术指导
+  OTHER             /// 其他
+}
+
+/// 工单优先级
+enum Priority {
+  URGENT   /// 紧急
+  NORMAL   /// 一般
+  LOW      /// 普通
+}
+
+/// 工单特殊要求
+enum SpecialRequirement {
+  HIGH_VOLTAGE_CERTIFICATE /// 需要高压作业证
+  PROFESSIONAL_TOOLS       /// 需要专业工具
+  SAFETY_SUPERVISION       /// 需要安全监护
+  POWER_OUTAGE             /// 需要停电作业
+}
+
+/// 工单状态（整合生命周期+执行流程，兼容原有逻辑）
+enum WorkOrderStatus {
+  PENDING_REVIEW       /// 待审核（用户提交，等待管理员审核）
+  REVIEW_REJECTED      /// 审核拒绝（需用户修改后重新提交）
+  PENDING_ACCEPTANCE   /// 待接单（审核通过或管理员直接创建，等待电工接单）
+  ACCEPTED             /// 已接单（至少1名电工已接单，但尚未开始执行）
+  IN_PROGRESS          /// 处理中（至少1名电工已开始执行）
+  COMPLETED            /// 已完成
+  REJECTED             /// 已拒绝（所有接单电工均拒绝）
+  CANCELLED            /// 已取消
+}
+
+/// 工单派单状态（保留，支撑重新分配逻辑）
+enum WorkOrderDispatchStatus {
+  UNASSIGNED       /// 未派单
+  ASSIGNED         /// 已派单
+  REASSIGNED       /// 已重新派单
+}
+
+/// 工单创建来源
+enum CreatedSource {
+  ADMIN        /// 后台管理员创建
+  ENTERPRISE   /// 小程序企业端创建
+}
+
+
+/// 工单表（核心业务表，支持多电工，状态整合生命周期+执行流程）
+model WorkOrder {
+  id                      Int                     @id @default(autoincrement()) @map("id") /// 主键ID
+  orderNo                 String                  @unique @map("order_no") /// 工单号
+  title                   String                  @db.VarChar(255) @map("title") /// 工单标题（必填）
+  type                    WorkOrderType           @map("type") /// 工单类型
+  estimatedHours          Int                     @map("estimated_hours") /// 预计工时（小时）
+  priority                Priority                @map("priority") /// 优先级
+  enterpriseId            Int                     @map("enterprise_id") /// 关联企业ID（必填）
+  enterprise              Enterprise              @relation("EnterpriseToWorkOrder", fields: [enterpriseId], references: [id], onDelete: Restrict) /// 禁止删除有工单的企业
+  
+  // 企业联系方式（工单详情展示）
+  contactName   String?                 @db.VarChar(50) @map("contact_name") /// 企业联系人姓名
+  contactPhone  String?                  @db.VarChar(50) @map("contact_phone") /// 企业联系电话（必填）
+  
+  workAddress             String                  @db.Text @map("work_address") /// 工作地址（必填）
+  descriptionType         String                  @map("description_type") /// 描述类型（template/custom）
+  customDescription       String?                 @db.Text @map("custom_description") /// 自定义描述（可选）
+  
+  // JSON字段：模板选择的检查项（工单创建时的任务清单）
+  selectedTemplateItems   Json?                   @map("selected_template_items")
+  // 关联草稿（一对一，可选）
+  draftId                 Int?                    @unique @map("draft_id")
+  draft                   WorkOrderDraft?         @relation("WorkOrderToDraft")
+
+  images                  Json?                   @map("images") ///具体要求图片
+  
+  specificRequirements    String?                 @db.Text @map("specific_requirements") /// 具体要求（可选）
+  plannedStartTime        DateTime?               @map("planned_start_time") /// 计划开始时间（可选）
+  plannedEndTime          DateTime?               @map("planned_end_time") /// 计划完成时间（可选）
+  specialRequirements     Json?                   @map("special_requirements") /// 特殊要求（JSON数组）
+  remarks                 String?                 @db.Text @map("remarks") /// 备注（可选）
+  rejectReason            String?                 @db.Text @map("reject_reason") /// 审核失败原因（可选）
+  
+  // 核心：使用扩展后的工单状态（整合生命周期+执行流程）
+  status                  WorkOrderStatus         @default(PENDING_ACCEPTANCE) @map("status")
+  
+  // 派单相关字段（支撑重新分配）
+  dispatchStatus          WorkOrderDispatchStatus @default(UNASSIGNED) @map("dispatch_status") /// 派单状态
+  lastAssignedAt          DateTime?               @map("last_assigned_at") /// 最后一次分配时间
+  reassignmentCount       Int                     @default(0) @map("reassignment_count") /// 重新分配次数
+  totalAssignedTechnicians Int                    @default(0) @map("total_assigned_technicians") /// 已分配电工总数
+  completedTechnicians    Int                     @default(0) @map("completed_technicians") /// 已完成流程的电工数
+  rejectedTechnicians     Int                     @default(0) @map("rejected_technicians") /// 已拒绝工单的电工数
+
+  createdBy               Int?                    @map("created_by")
+  creator                 AdminUser?              @relation("AdminToWorkOrder", fields: [createdBy], references: [adminId], onDelete: Restrict)
+  
+  createdSource           CreatedSource           @default(ADMIN) @map("created_source") /// 默认后台创建
+  
+  createdAt               DateTime                @db.DateTime(3) @map("created_at") /// 创建时间
+  updatedAt               DateTime                @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除字段
+  isDeleted               Boolean                 @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt               DateTime?               @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 双向关联：指派单、工单处理记录（一对多）
+  assignments             WorkOrderAssignment[]   @relation("WorkOrderToAssignment")
+  workOrderTechnicians    WorkOrderTechnician[]   @relation("WorkOrderToTechnician")
+
+  // 索引配置
+  @@index([orderNo], name: "idx_workorder_order_no")
+  @@index([enterpriseId], name: "idx_workorder_enterprise")
+  @@index([status], name: "idx_workorder_status") /// 扩展后的状态索引（核心）
+  @@index([dispatchStatus, totalAssignedTechnicians], name: "idx_workorder_dispatch_count")
+  @@index([lastAssignedAt], name: "idx_workorder_last_assign")
+  @@index([isDeleted, deletedAt], name: "idx_workorder_deleted") // 逻辑删除索引
+
+  @@map("work_orders")
+}
+
+/// 工单草稿状态枚举
+enum WorkOrderDraftStatus {
+  PENDING_SUBMIT /// 待提交（可编辑）
+  GENERATED      /// 已生成工单（不可编辑）
+  INVALID        /// 作废（不可提交）
+}
+
+/// 工单草稿箱表（先存草稿，确认后生成正式工单）
+model WorkOrderDraft {
+  id                      Int                     @id @default(autoincrement()) @map("id") /// 草稿ID
+  title                   String                  @db.VarChar(255) @map("title") /// 草稿标题
+  type                    WorkOrderType           @map("type") /// 工单类型
+  estimatedHours          Int                     @map("estimated_hours") /// 预计工时
+  priority                Priority                @map("priority") /// 优先级
+  enterpriseId            Int                     @map("enterprise_id") /// 关联企业ID（必填）
+  enterprise              Enterprise              @relation("EnterpriseToWorkOrderDraft", fields: [enterpriseId], references: [id], onDelete: Restrict) /// 禁止删除有草稿的企业
+  
+  // 同步工单的企业联系方式（生成工单时自动填充）
+  enterpriseContactName   String?                 @db.VarChar(50) @map("enterprise_contact_name") /// 草稿对应企业联系人姓名
+  enterpriseContactPhone  String?                 @db.VarChar(50) @map("enterprise_contact_phone") /// 草稿对应企业联系电话
+  
+  contactPhone            String                  @db.VarChar(50) @map("contact_phone") /// 联系电话
+  workAddress             String                  @db.Text @map("work_address") /// 工作地址
+  descriptionType         String                  @map("description_type") /// 描述类型
+  customDescription       String?                 @db.Text @map("custom_description") /// 自定义描述（可选）
+  images                  Json?                   @map("images") ///具体要求图片
+  
+  // JSON字段：草稿阶段选择的模板检查项
+  selectedTemplateItems   Json?                   @map("selected_template_items")
+  specificRequirements    String?                 @db.Text @map("specific_requirements") /// 具体要求（可选）
+  plannedStartTime        DateTime?               @map("planned_start_time") /// 计划开始时间（可选）
+  plannedEndTime          DateTime?               @map("planned_end_time") /// 计划完成时间（可选）
+  specialRequirements     Json?                   @map("special_requirements") /// 特殊要求（JSON数组）
+  remarks                 String?                 @db.Text @map("remarks") /// 草稿备注（可选）
+  
+  draftStatus             WorkOrderDraftStatus    @default(PENDING_SUBMIT) @map("draft_status") /// 草稿状态
+  workOrderId             Int?                    @unique @map("work_order_id") /// 关联正式工单ID（可选）
+  workOrder               WorkOrder?              @relation("WorkOrderToDraft", fields: [workOrderId], references: [id], onDelete: Restrict) /// 禁止删除有草稿关联的工单
+  
+  createdBy               Int                     @map("created_by") /// 创建者ID（关联后台用户）
+  creator                 AdminUser               @relation("AdminToWorkOrderDraft", fields: [createdBy], references: [adminId], onDelete: Restrict) /// 禁止删除有草稿的管理员
+  
+  createdAt               DateTime                @db.DateTime(3) @map("created_at") /// 创建时间
+  updatedAt               DateTime                @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除字段
+  isDeleted               Boolean                 @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt               DateTime?               @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 索引配置
+  @@index([enterpriseId], name: "idx_draft_enterprise")
+  @@index([createdBy], name: "idx_draft_creator")
+  @@index([draftStatus], name: "idx_draft_status")
+  @@index([isDeleted, deletedAt], name: "idx_draft_deleted") // 逻辑删除索引
+  @@map("work_order_drafts")
+}
+
+/// 工单指派状态（电工接单状态）
+enum WorkOrderAssignmentStatus {
+  PENDING   /// 待处理
+  ACCEPTED  /// 已同意
+  REJECTED  /// 已拒绝
+}
+
+
+/// 工单指派单表（记录指派流程）
+model WorkOrderAssignment {
+  id                Int                          @id @default(autoincrement()) @map("id") /// 指派单ID
+  workOrderId       Int                          @map("work_order_id") /// 关联工单ID
+  workOrder         WorkOrder                    @relation("WorkOrderToAssignment", fields: [workOrderId], references: [id], onDelete: Cascade, map: "fk_assignment_workorder") /// 工单删除时级联删除指派单（唯一外键名）
+  technicianId      Int                          @map("technician_id") /// 关联电工ID
+  technician        Technician                   @relation("TechnicianToWorkOrderAssignment", fields: [technicianId], references: [technicianId], onDelete: Cascade, map: "fk_assignment_technician") /// 电工删除时级联删除指派单（唯一外键名）
+  status            WorkOrderAssignmentStatus    @default(PENDING) @map("status") /// 指派状态
+  assignedBy        Int                          @map("assigned_by") /// 指派者ID（关联后台用户）
+  assigner          AdminUser                    @relation("AdminToWorkOrderAssignment", fields: [assignedBy], references: [adminId], onDelete: Restrict) /// 禁止删除有指派单的管理员
+  remark            String?                      @db.Text @map("remark") /// 指派备注（可选）
+  handledAt         DateTime?                    @map("handled_at") /// 电工处理时间（同意/拒绝）
+  
+  createdAt         DateTime                     @db.DateTime(3) @map("created_at") /// 指派时间
+  updatedAt         DateTime                     @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除字段
+  isDeleted         Boolean                      @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt         DateTime?                    @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 索引配置
+  @@index([workOrderId, status], name: "idx_assignment_order_status")
+  @@index([technicianId, status], name: "idx_assignment_tech_status")
+  @@index([isDeleted, deletedAt], name: "idx_assignment_deleted") // 逻辑删除索引
+  @@map("work_order_assignments")
+}
+
+/// 单个电工的工单执行状态（独立枚举，对应细分执行节点）
+enum TechnicianWorkOrderStatus {
+  NOT_STARTED            /// 未开始（接单后未操作）
+  ARRIVAL_NOTIFIED       /// 已通知预计到达时间
+  DEPARTED               /// 已出发
+  ARRIVED                /// 已到达
+  SELF_INSPECTED         /// 已完成装备自检
+  EXECUTING              /// 执行巡检任务
+  COMPLETED              /// 自身流程完成
+  REJECTED               /// 自身拒绝工单
+}
+
+/// 工单-电工关联表（记录已接单电工的处理记录+多媒体，含独立执行状态）
+model WorkOrderTechnician {
+  workOrderId       Int                          @map("work_order_id") /// 关联工单ID
+  workOrder         WorkOrder                    @relation("WorkOrderToTechnician", fields: [workOrderId], references: [id], onDelete: Cascade, map: "fk_tech_workorder") /// 唯一外键名
+  technicianId      Int                          @map("technician_id") /// 关联电工ID
+  technician        Technician                   @relation("TechnicianToWorkOrderTechnician", fields: [technicianId], references: [technicianId], onDelete: Cascade, map: "fk_tech_technician") /// 唯一外键名
+  
+  
+  // 单个电工的流程节点字段（一一对应执行状态）
+  estimatedArrivalTime DateTime?                 @map("estimated_arrival_time") /// 预计到达时间（executionStatus=ARRIVAL_NOTIFIED时填充）
+  departureTime      DateTime?                   @map("departure_time") /// 出发时间（executionStatus=DEPARTED时填充）
+  arrivalTime        DateTime?                   @map("arrival_time") /// 到达时间（executionStatus=ARRIVED时填充）
+  
+  // 装备自检（executionStatus=SELF_INSPECTED时填充）
+  selfInspectionCompleted Boolean                @default(false) @map("self_inspection_completed") /// 是否完成自检
+  selfInspectionPhotos Json?                     @map("self_inspection_photos") /// 自检照片URL数组
+  selfInspectionTime  DateTime?                  @map("self_inspection_time") /// 自检完成时间
+  
+  executionStartTime  DateTime?                  @map("execution_start_time") /// 执行开始时间（executionStatus=EXECUTING时填充）
+  completeTime       DateTime?                   @map("complete_time") /// 完成时间（executionStatus=COMPLETED时填充）
+  
+  // 拒绝工单（executionStatus=REJECTED时填充）
+  rejectReason       String?                     @db.Text @map("reject_reason") /// 拒绝工单原因
+  rejectTime         DateTime?                  @map("reject_time") /// 拒绝时间
+  
+  // 重新分配标识（隐藏历史数据）
+  isReassigned       Boolean                    @default(false) @map("is_reassigned") /// 是否为重新分配的工单（true=隐藏历史数据）
+  
+ // 核心：单个电工的独立执行状态（对应扩展后的工单细分状态）
+  processingStatus  TechnicianWorkOrderStatus    @default(NOT_STARTED) @map("processing_status")
+  processingResult  Json?                        @map("processing_result") /// 处理结果（JSON数组，逐项记录）
+  
+  // 多媒体字段（JSON数组存储URL）
+  processingImages  Json?                        @map("processing_images") /// 图片URL数组
+  processingVideos  Json?                        @map("processing_videos") /// 视频URL数组
+
+  startTime         DateTime?                    @map("start_time") /// 兼容原有字段（可替换为executionStartTime）
+
+  notStartedRemark   String?                     @db.Text @map("not_started_remark") /// 未开始节点备注（接单后未操作的说明）
+  arrivalNotifiedRemark String?                  @db.Text @map("arrival_notified_remark") /// 已通知预计到达时间节点备注
+  departedRemark     String?                     @db.Text @map("departed_remark") /// 已出发节点备注（如出发时的特殊情况）
+  arrivedRemark      String?                     @db.Text @map("arrived_remark") /// 已到达节点备注（如到达现场的情况说明）
+  selfInspectedRemark String?                    @db.Text @map("self_inspected_remark") /// 已完成装备自检节点备注（如自检异常说明）
+  executingRemark    String?                     @db.Text @map("executing_remark") /// 执行巡检任务节点备注（如巡检过程中的问题）
+  completedRemark    String?                     @db.Text @map("completed_remark") /// 自身流程完成节点备注（如完成后的总结）
+
+  remark            String?                      @db.Text @map("remark") /// 备注（可选）
+  
+  createdAt         DateTime                     @db.DateTime(3) @map("created_at") /// 接单时间
+  updatedAt         DateTime                     @db.DateTime(3) @map("updated_at") /// 记录更新时间
+  
+  // 逻辑删除字段
+  isDeleted         Boolean                      @default(false) @map("is_deleted") /// 是否删除（默认未删除）
+  deletedAt         DateTime?                    @db.DateTime(3) @map("deleted_at") /// 删除时间（未删除时为null）
+
+  // 复合主键：一个电工对一个工单仅一条处理记录
+  @@id([workOrderId, technicianId])
+  // 索引配置（优化多电工场景查询）
+ @@index([workOrderId, isReassigned, processingStatus], name: "idx_order_tech_reassign_status") /// 核心查询索引：工单+是否历史+执行状态
+  @@index([technicianId, processingStatus], name: "idx_tech_exec_status") /// 按电工+执行状态查询
+  @@index([workOrderId, rejectTime], name: "idx_order_tech_reject") /// 按工单查询拒绝的电工
+  @@index([selfInspectionCompleted], name: "idx_tech_self_inspect") /// 按自检状态查询
+  @@index([isDeleted, deletedAt], name: "idx_order_tech_deleted") // 逻辑删除索引
+  @@map("work_order_technicians")
+}
+
+// 模板状态枚举
+enum TemplateStatus {
+  ENABLED  /// 启用
+  DISABLED /// 禁用
+}
+
+/// 工单模板表（存储前端组合的完整数据：模板配置+检查项+操作项）
+model WorkOrderTemplate {
+  id                Int                 @id @default(autoincrement()) @map("id") /// 模板ID
+  templateName      String              @map("template_name") @db.VarChar(100) /// 模板名称（前端填写，用于列表展示）
+  status            TemplateStatus      @default(ENABLED) @map("status") /// 状态（启用/禁用，控制可用性）
+  createdBy         Int                 @map("created_by") /// 创建者ID（关联后台用户）
+  creator           AdminUser           @relation("AdminToWorkOrderTemplate", fields: [createdBy], references: [adminId], onDelete: Restrict)
+
+  // 2. 核心字段：存储前端组合的所有数据（单JSON字段）
+  templateData      Json                @map("template_data") /// 前端组合的完整数据
+  /// templateData 结构示例（前端可自由扩展，无需严格对应数据库模型）：
+  /// {
+  ///   "templateConfig": {  // 原MaintenanceTemplate相关配置
+  ///     "name": "高压设备月度维保模板",
+  ///     "description": "适用于10kV以上高压设备的月度检查",
+  ///     "defaultPriority": "NORMAL",  // 工单优先级默认值
+  ///     "estimatedHours": 3  // 预计工时默认值
+  ///   },
+  ///   "inspectionItems": [  // 检查项列表（前端组合）
+  ///     {
+  ///       "id": "custom_1",  // 前端自定义ID（避免冲突）
+  ///       "name": "设备外观检查",
+  ///       "sort": 1,
+  ///       "required": true,
+  ///       "remark": "检查是否有破损、锈蚀"
+  ///     },
+  ///     { "id": "custom_2", "name": "线路绝缘检测", "sort": 2, "required": true }
+  ///   ],
+  ///   "operationItems": [  // 操作项列表（前端组合）
+  ///     {
+  ///       "id": "op_1",
+  ///       "name": "螺丝紧固",
+  ///       "type": "BOOLEAN",  // 操作类型
+  ///       "options": null,    // 布尔类型无选项
+  ///       "bindInspectionId": "custom_1",  // 关联的检查项（可选）
+  ///       "sort": 1
+  ///     },
+  ///     {
+  ///       "id": "op_2",
+  ///       "name": "绝缘电阻测试",
+  ///       "type": "SELECT",
+  ///       "options": ["合格（>10MΩ）", "不合格（≤10MΩ）"],
+  ///       "bindInspectionId": "custom_2",
+  ///       "sort": 2
+  ///     }
+  ///   ]
+  /// }
+
+  createdAt         DateTime            @db.DateTime(3) @map("created_at") /// 创建时间
+  updatedAt         DateTime?           @db.DateTime(3) @map("updated_at") /// 更新时间（前端修改后更新）
+  isDeleted         Boolean             @default(false) @map("is_deleted") /// 是否删除
+  deletedAt         DateTime?           @db.DateTime(3) @map("deleted_at") /// 删除时间
+
+
+  // 索引配置
+  @@index([templateName], name: "idx_wo_tpl_name") /// 按名称模糊查询（前端列表常用）
+  @@index([status, createdAt], name: "idx_wo_tpl_status_time") /// 按状态+创建时间筛选
+  @@index([createdBy, isDeleted], name: "idx_wo_tpl_creator") /// 按创建者查询个人模板
+  @@map("work_order_templates")
+}
+
+
+// 设备类型枚举（与业务中的设备类型严格对应）
+enum EquipmentType {
+  HIGH_VOLTAGE_CABINET  /// 高压柜
+  TRANSFORMER           /// 变压器
+  LOW_VOLTAGE_CABINET   /// 低压柜
+}
+
+// 设备模板类型枚举（与设备类型一一对应，用于模板匹配）
+enum EquipmentTemplateType {
+  HIGH_VOLTAGE_CABINET  /// 高压柜模板
+  TRANSFORMER           /// 变压器模板
+  LOW_VOLTAGE_CABINET   /// 低压柜模板
+}
+
+/// 设备模板表（存储不同类型设备的默认参数结构，供电工录入时动态渲染表单）
+model EquipmentTemplate {
+  id                Int                          @id @default(autoincrement()) @map("id") /// 模板ID
+  name              String                       @db.VarChar(100) @map("name") /// 模板名称（如"KYN28-12高压柜标准模板"）
+  type              EquipmentTemplateType        @map("type") /// 模板类型（与设备类型一一对应）
+  defaultStructure  Json                         @map("default_structure") /// 模板参数结构（定义字段、类型、必填项等，示例见下文）
+  description       String?                      @db.Text @map("description") /// 模板描述（可选）
+  createdBy         Int                          @map("created_by") /// 创建者ID（关联后台管理员）
+  creator           AdminUser                    @relation("AdminToEquipmentTemplate", fields: [createdBy], references: [adminId], onDelete: Restrict) /// 禁止删除有模板的管理员
+  isDefault         Boolean                      @default(false) @map("is_default") /// 是否为该类型的默认模板（同类型唯一）
+  
+  createdAt         DateTime                     @db.DateTime(3) @map("created_at") /// 创建时间
+  updatedAt         DateTime                     @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除字段
+  isDeleted         Boolean                      @default(false) @map("is_deleted") /// 是否删除
+  deletedAt         DateTime?                    @db.DateTime(3) @map("deleted_at") /// 删除时间
+
+  // 索引配置
+  /// 按模板类型快速查询
+  @@index(name: "idx_equipment_template_type", fields: [type])
+  /// 按创建者查询个人模板
+  @@index(name: "idx_equipment_template_creator", fields: [createdBy])
+  /// 逻辑删除索引
+  @@index(name: "idx_equipment_template_deleted", fields: [isDeleted, deletedAt])
+  @@map("equipment_templates")
+}
+
+/// 设备信息表（补充设备编号字段）
+model Equipment {
+  id              Int                  @id @default(autoincrement()) @map("id") /// 设备ID（数据库自增）
+  equipmentNo     String               @db.VarChar(50) @map("equipment_no") /// 设备编号（业务唯一标识，如企业资产编号，必填）
+  name            String               @db.VarChar(100) @map("name") /// 设备名称（如"1号高压柜"，必填）
+  type            EquipmentType        @map("type") /// 设备类型（与模板类型对应）
+  enterpriseId    Int                  @map("enterprise_id") /// 关联企业ID（设备归属的企业）
+  enterprise      Enterprise           @relation("EnterpriseToEquipment", fields: [enterpriseId], references: [id], onDelete: Restrict)
+  manufactureDate DateTime             @map("manufacture_date") /// 出厂日期（必填）
+  nameplatePhoto  String?               @db.VarChar(200) @map("nameplate_photo") /// 铭牌照片URL（选填）
+  customInfo      Json                 @map("custom_info") /// 基于模板填写的设备参数（必填）
+  devicePhotos    Json?                @map("device_photos") /// 设备多角度照片（JSON数组）
+  remarks         String?              @db.Text @map("remarks") /// 设备备注
+  
+  createdAt       DateTime             @db.DateTime(3) @map("created_at") /// 创建时间
+  updatedAt       DateTime             @db.DateTime(3) @map("updated_at") /// 更新时间
+  
+  // 逻辑删除字段
+  isDeleted       Boolean              @default(false) @map("is_deleted")
+  deletedAt       DateTime?            @db.DateTime(3) @map("deleted_at")
+
+  // 索引配置（移除电工相关索引，保留其他核心索引）
+  @@index([equipmentNo], name: "idx_equipment_no") /// 设备编号索引（快速查询）
+  @@index([enterpriseId, type], name: "idx_equipment_enterprise_type")
+  @@index([manufactureDate], name: "idx_equipment_manufacture_date")
+  @@index([isDeleted, deletedAt], name: "idx_equipment_deleted")
+  @@map("equipments")
+}
+

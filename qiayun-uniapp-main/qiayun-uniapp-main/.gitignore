@@ -1,0 +1,38 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn*.log
+pnpm-lock.yaml
+package-lock.json
+
+# 编译输出
+unpackage/
+dist/
+build/
+
+# 临时与日志
+*.log
+*.tmp
+*.bak
+temp/
+.DS_Store
+Thumbs.db
+
+# 微信小程序
+dist/build/mp-weixin/
+project.private.config.json
+project.config.json
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.suo
+*.njsproj
+*.sln
+*.sw?
+
+# HBuilderX 临时文件
+.hbuilderx/
+manifest.json.backup
+

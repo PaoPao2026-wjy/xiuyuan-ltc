@@ -1,0 +1,35 @@
+# ---- 敏感：密钥/证书/环境变量/数据库 ----
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+
+# ---- 数据库（含真实业务数据，绝不入库） ----
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.dump
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+
+# ---- Node ----
+node_modules/
+dist/
+build/
+.nuxt/
+*.log
+
+# ---- 系统/编辑器 ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

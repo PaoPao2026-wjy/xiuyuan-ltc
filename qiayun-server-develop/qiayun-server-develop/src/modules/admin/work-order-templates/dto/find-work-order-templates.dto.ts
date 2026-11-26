@@ -1,0 +1,28 @@
+import { Type } from 'class-transformer';
+import { IsInt, Max, IsOptional, IsString, Min } from 'class-validator';
+
+/**
+ * 分页查询工单模板的参数DTO
+ */
+export class FindWorkOrderTemplatesDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1) // 页码最小为1
+  @Type(() => Number) // 自动将查询参数转为数字（避免字符串类型）
+  page = 1; // 默认值：第1页
+
+  @IsOptional()
+  @IsInt()
+  @Min(1) // 每页最小1条
+  @Max(100) // 限制最大100条，避免全量查询性能问题
+  @Type(() => Number)
+  pageSize = 10; // 默认值：每页10条
+
+  @IsString()
+  @IsOptional()
+  keyword?: string; // 用于模糊搜索模板名称
+
+  @IsString()
+  @IsOptional()
+  status?: string; // 筛选状态（ENABLED/DISABLED）
+}
